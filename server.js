@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
-import noteRoutes from './routes/noteRoutes.js';
+import noteRoutes from './routes/notes.js';
 
 dotenv.config();
 
@@ -20,6 +20,16 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notes', noteRoutes);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    success: false,
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
 
 // Connect DB and Start Server
 mongoose.connect(process.env.MONGO_URI, {

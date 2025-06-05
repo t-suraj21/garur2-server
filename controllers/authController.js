@@ -1,8 +1,9 @@
-const User = require('../models/User');
-const jwt = require('jsonwebtoken');
+import User from '../models/User.js';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
 // Register new user
-exports.register = async (req, res) => {
+export const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
@@ -22,11 +23,17 @@ exports.register = async (req, res) => {
       password,
     });
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user._id },
+    // Generate tokens
+    const accessToken = jwt.sign(
+      { id: user._id },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
     );
 
     // Remove password from response
@@ -34,13 +41,21 @@ exports.register = async (req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
-      createdAt: user.createdAt,
+      phone: user.phone,
+      location: user.location,
+      class: user.class,
+      bio: user.bio,
+      completedTests: user.completedTests,
+      readBooks: user.readBooks,
+      lastLogin: user.lastLogin,
+      createdAt: user.createdAt
     };
 
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
-      token,
+      accessToken,
+      refreshToken,
       user: userResponse,
     });
   } catch (error) {
@@ -54,7 +69,7 @@ exports.register = async (req, res) => {
 };
 
 // Login user
-exports.login = async (req, res) => {
+export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -68,7 +83,7 @@ exports.login = async (req, res) => {
     }
 
     // Check password
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -76,25 +91,43 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user._id },
+    // Generate tokens
+    const accessToken = jwt.sign(
+      { id: user._id },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    const refreshToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
 
     // Remove password from response
     const userResponse = {
       _id: user._id,
       name: user.name,
       email: user.email,
-      createdAt: user.createdAt,
+      phone: user.phone,
+      location: user.location,
+      class: user.class,
+      bio: user.bio,
+      completedTests: user.completedTests,
+      readBooks: user.readBooks,
+      lastLogin: user.lastLogin,
+      createdAt: user.createdAt
     };
 
     res.status(200).json({
       success: true,
       message: 'Login successful',
-      token,
+      accessToken,
+      refreshToken,
       user: userResponse,
     });
   } catch (error) {
@@ -108,9 +141,9 @@ exports.login = async (req, res) => {
 };
 
 // Get current user
-exports.getCurrentUser = async (req, res) => {
+export const getCurrentUser = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).select('-password');
+    const user = await User.findById(req.user.id).select('-password');
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -128,6 +161,54 @@ exports.getCurrentUser = async (req, res) => {
       success: false,
       message: 'Error fetching user data',
       error: error.message,
+    });
+  }
+};
+
+// Refresh token
+export const refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token is required',
+      });
+    }
+
+    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Generate new access token
+    const accessToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Token refreshed successfully',
+      accessToken,
+    });
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token has expired. Please login again.',
+      });
+    }
+    res.status(401).json({
+      success: false,
+      message: 'Invalid refresh token',
     });
   }
 }; 

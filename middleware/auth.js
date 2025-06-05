@@ -23,15 +23,33 @@ const auth = async (req, res, next) => {
     
     // Set user ID in the request
     req.user = {
-      _id: decoded.id || decoded._id // Handle both formats
+      id: decoded.id || decoded.userId // Handle both formats
     };
     
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token has expired. Please login again.',
+        code: 'TOKEN_EXPIRED'
+      });
+    }
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token. Please login again.',
+        code: 'INVALID_TOKEN'
+      });
+    }
+
     res.status(401).json({
       success: false,
-      message: 'Token is not valid',
+      message: 'Authentication failed',
+      code: 'AUTH_FAILED'
     });
   }
 };
