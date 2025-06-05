@@ -1,11 +1,16 @@
 import jwt from 'jsonwebtoken';
 
 const auth = async (req, res, next) => {
+  console.log('Auth middleware - Request received');
+  console.log('Headers:', req.headers);
+  
   try {
     // Get token from header
     const token = req.header('Authorization')?.replace('Bearer ', '');
+    console.log('Token received:', token ? 'Yes' : 'No');
 
     if (!token) {
+      console.log('No token provided');
       return res.status(401).json({
         success: false,
         message: 'No authentication token, access denied',
@@ -14,6 +19,7 @@ const auth = async (req, res, next) => {
 
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Token decoded successfully. User ID:', decoded.id);
     req.user = decoded;
     next();
   } catch (error) {
