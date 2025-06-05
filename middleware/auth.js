@@ -20,7 +20,12 @@ const auth = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log('Token decoded successfully. User ID:', decoded.id);
-    req.user = decoded;
+    
+    // Set user ID in the request
+    req.user = {
+      _id: decoded.id || decoded._id // Handle both formats
+    };
+    
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);

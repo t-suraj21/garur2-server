@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
-import noteRoutes from './routes/notes.js';
+import noteRoutes from './routes/noteRoutes.js';
 
 dotenv.config();
 
